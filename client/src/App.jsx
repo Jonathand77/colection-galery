@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import AppFooter from './components/AppFooter'
 import CategoryFilters from './components/CategoryFilters'
 import GalleryHeader from './components/GalleryHeader'
 import GalleryToolbar from './components/GalleryToolbar'
@@ -26,6 +27,7 @@ function App() {
   const [selectedCategory, setSelectedCategory] = useState('Todas')
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedPiece, setSelectedPiece] = useState(null)
+  const [detailOpen, setDetailOpen] = useState(false)
   const [formMode, setFormMode] = useState('create')
   const [formOpen, setFormOpen] = useState(false)
   const [formData, setFormData] = useState(defaultForm)
@@ -40,6 +42,13 @@ function App() {
       }, {}),
     [pieces],
   )
+
+  const totalCollections = useMemo(() => {
+    const uniqueCollections = new Set(pieces.map((piece) => piece.collection).filter(Boolean))
+    return uniqueCollections.size
+  }, [pieces])
+
+  const totalCategories = useMemo(() => categories.filter((category) => category !== 'Todas').length, [categories])
 
   useEffect(() => {
     loadCategories()
@@ -84,6 +93,7 @@ function App() {
   }
 
   function openEditForm(piece) {
+    setDetailOpen(false)
     setFormMode('edit')
     setFormData({
       title: piece.title || '',
@@ -103,6 +113,15 @@ function App() {
   function closeForm() {
     setFormOpen(false)
     setFormData(defaultForm)
+  }
+
+  function openDetail(piece) {
+    setSelectedPiece(piece)
+    setDetailOpen(true)
+  }
+
+  function closeDetail() {
+    setDetailOpen(false)
   }
 
   function onFieldChange(event) {
@@ -152,6 +171,7 @@ function App() {
       await removePiece(piece.id)
       if (selectedPiece?.id === piece.id) {
         setSelectedPiece(null)
+        setDetailOpen(false)
       }
       await loadPieces()
     } catch (deleteError) {
@@ -161,23 +181,34 @@ function App() {
 
   return (
     <main className="museum-app">
-      <GalleryHeader />
+      <GalleryHeader totalPieces={pieces.length} totalCollections={totalCollections} totalCategories={totalCategories} />
 
-      <GalleryToolbar searchTerm={searchTerm} onSearchChange={setSearchTerm} onAddClick={openCreateForm} />
+      <section className="content-shell">
+        <section className="control-hub">
+          <GalleryToolbar searchTerm={searchTerm} onSearchChange={setSearchTerm} onAddClick={openCreateForm} />
 
-      <CategoryFilters
-        categories={categories}
-        selectedCategory={selectedCategory}
-        counts={totalByCategory}
-        onSelect={setSelectedCategory}
-      />
+          <CategoryFilters
+            categories={categories}
+            selectedCategory={selectedCategory}
+            counts={totalByCategory}
+            onSelect={setSelectedCategory}
+          />
+        </section>
 
-      {error && <p className="error-box">{error}</p>}
+        {error && <p className="error-box">{error}</p>}
 
-      <section className="gallery-layout">
-        <PieceGrid pieces={pieces} isLoading={isLoading} onSelectPiece={setSelectedPiece} />
-        <PieceDetail piece={selectedPiece} onEdit={openEditForm} onDelete={onDeletePiece} />
+        <section className="gallery-layout">
+          <PieceGrid
+            pieces={pieces}
+            isLoading={isLoading}
+            onViewPiece={openDetail}
+            onEditPiece={openEditForm}
+            onDeletePiece={onDeletePiece}
+          />
+        </section>
       </section>
+
+      <PieceDetail isOpen={detailOpen} piece={selectedPiece} onClose={closeDetail} />
 
       <PieceFormPanel
         isOpen={formOpen}
@@ -189,6 +220,8 @@ function App() {
         onClose={closeForm}
         onSubmit={onSubmit}
       />
+
+      <AppFooter />
     </main>
   )
 }
